@@ -1,0 +1,42 @@
+name: simpleslideshow
+base: core24
+version: '1.0.0'
+summary: GNOME wallpaper slideshow configurator
+description: |
+  A simple application to create and configure desktop wallpaper slideshows
+  on Ubuntu/GNOME. Select images, set duration and timing, and apply.
+
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+
+apps:
+  simpleslideshow:
+    command: bin/simpleslideshow
+    extensions: [gnome]
+    plugs:
+      - home
+      - gsettings
+    environment:
+      GTK_USE_PORTAL: "1"
+
+parts:
+  simpleslideshow:
+    plugin: nil
+    source: .
+    override-build: |
+      mkdir -p $CRAFT_PART_INSTALL/bin
+      mkdir -p $CRAFT_PART_INSTALL/share/applications
+      mkdir -p $CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps
+      cp simpleslideshow.py $CRAFT_PART_INSTALL/bin/simpleslideshow
+      chmod +x $CRAFT_PART_INSTALL/bin/simpleslideshow
+      cp simpleslideshow.desktop $CRAFT_PART_INSTALL/share/applications/
+      cp simpleslideshow.svg $CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps/
+    stage-packages:
+      - python3
+      - python3-gi
+      - python3-gi-cairo
+      - gir1.2-gtk-4.0
+      - gir1.2-adw-1

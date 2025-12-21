@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SimpleSlideshow
+Comment=Configure desktop wallpaper slideshows
+Exec=simpleslideshow
+Icon=simpleslideshow
+Categories=Utility;Settings;GTK;
+Keywords=wallpaper;slideshow;background;desktop;
+StartupNotify=true
+Terminal=false
