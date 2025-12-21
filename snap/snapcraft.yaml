@@ -6,6 +6,9 @@ description: |
   A simple application to create and configure desktop wallpaper slideshows
   on Ubuntu/GNOME. Select images, set duration and timing, and apply.
 
+  I created this because I couldn't find an easy way to set up a wallpaper
+  slideshow. It's mostly written with Claude.
+
 grade: stable
 confinement: strict
 

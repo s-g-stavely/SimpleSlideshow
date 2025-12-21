@@ -2,7 +2,7 @@
 
 A simple GNOME wallpaper slideshow configurator for Ubuntu.
 
-![Screenshot placeholder]
+![Example Screenshot](./example_screenshot.png)
 
 ## Features
 
