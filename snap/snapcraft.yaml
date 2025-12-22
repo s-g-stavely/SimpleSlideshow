@@ -9,6 +9,8 @@ description: |
   I created this because I couldn't find an easy way to set up a wallpaper
   slideshow. It's mostly written with Claude.
 
+  It has been tested on Ubuntu 24.04.
+
 grade: stable
 confinement: strict
 
@@ -34,7 +36,7 @@ parts:
       mkdir -p $CRAFT_PART_INSTALL/share/applications
       mkdir -p $CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps
       cp simpleslideshow.py $CRAFT_PART_INSTALL/bin/simpleslideshow
-      chmod +x $CRAFT_PART_INSTALL/bin/simpleslideshow
+      chmod 755 $CRAFT_PART_INSTALL/bin/simpleslideshow
       cp simpleslideshow.desktop $CRAFT_PART_INSTALL/share/applications/
       cp simpleslideshow.svg $CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps/
     stage-packages:
