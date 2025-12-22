@@ -17,6 +17,12 @@ confinement: strict
 platforms:
   amd64:
 
+slots:
+  dbus-simpleslideshow:
+    interface: dbus
+    bus: session
+    name: com.github.simpleslideshow
+
 apps:
   simpleslideshow:
     command: bin/simpleslideshow
@@ -24,6 +30,8 @@ apps:
     plugs:
       - home
       - gsettings
+    slots:
+      - dbus-simpleslideshow
     environment:
       GTK_USE_PORTAL: "1"
 

@@ -29,3 +29,8 @@ It generates GNOME-compatible XML configuration files:
 
 See the details of these files at:
 https://help.ubuntu.com/community/SlideshowWallpapers
+
+## TODOs
+
+- not showing image thumbnails in picker
+- warnings in logs
