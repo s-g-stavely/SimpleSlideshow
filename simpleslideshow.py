@@ -273,7 +273,7 @@ class WallpapererWindow(Adw.ApplicationWindow):
             self.do_apply()
 
     def do_apply(self):
-        """Actually generate XML files and apply wallpaper."""
+        """Generate XML files and apply wallpaper."""
         try:
             self.generate_slideshow_xml()
             self.generate_properties_xml()
@@ -310,11 +310,10 @@ class WallpapererWindow(Adw.ApplicationWindow):
         ET.SubElement(starttime, "minute").text = "00"
         ET.SubElement(starttime, "second").text = "00"
 
-        # Add static and transition elements for each image
+        # Add elements for each image
         image_paths = [row.image_path for row in self.image_rows]
 
         for i, path in enumerate(image_paths):
-            # Static element
             static = ET.SubElement(root, "static")
             ET.SubElement(static, "duration").text = f"{duration_seconds:.1f}"
             ET.SubElement(static, "file").text = path
