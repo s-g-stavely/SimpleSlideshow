@@ -6,21 +6,32 @@ Dependencies (Ubuntu/Debian):
     sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
 """
 
-import gi
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
-from pathlib import Path
 import subprocess
+import xml.etree.ElementTree as ET
+from collections.abc import Callable
+from pathlib import Path
+from typing import Self
+from xml.dom import minidom
+
+import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("GdkPixbuf", "2.0")
-
-from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf, GLib
-
+from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk
 
 APP_ID = "com.github.simpleslideshow"
 APP_NAME = "SimpleSlideshow"
+
+# Wallpaper scaling options: (gsettings_value, display_name, description)
+SCALING_OPTIONS = [
+    ("zoom", "Zoom", "Fill screen, may crop edges"),
+    ("scaled", "Scaled", "Fit to screen, may show borders"),
+    ("stretched", "Stretched", "Stretch to fill, may distort"),
+    ("centered", "Centered", "Center at original size, no scaling"),
+    ("wallpaper", "Tiled", "Tile the image repeatedly"),
+    ("spanned", "Spanned", "Span across multiple monitors"),
+]
 
 # Directories for GNOME wallpaper configuration
 BACKGROUNDS_DIR = Path.home() / ".local/share/backgrounds/simpleslideshow"
@@ -29,10 +40,34 @@ SLIDESHOW_XML = BACKGROUNDS_DIR / "slideshow.xml"
 PROPERTIES_XML = PROPERTIES_DIR / "simpleslideshow.xml"
 
 
+class ScalingOption(GObject.Object):
+    """A scaling option for the combo row."""
+
+    def __init__(self, value: str, name: str, description: str):
+        super().__init__()
+        self._value = value
+        self._name = name
+        self._description = description
+
+    @GObject.Property(type=str)
+    def value(self) -> str:
+        return self._value
+
+    @GObject.Property(type=str, nick="display-text")
+    def display_text(self) -> str:
+        return f"{self._name} - {self._description}"
+
+
 class ImageRow(Gtk.Box):
     """A row displaying an image thumbnail with remove button."""
 
-    def __init__(self, image_path: str, on_remove: callable, on_move_up: callable, on_move_down: callable):
+    def __init__(
+        self,
+        image_path: str,
+        on_remove: Callable[[Self], None],
+        on_move_up: Callable[[Self], None],
+        on_move_down: Callable[[Self], None],
+    ):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.image_path = image_path
         self.set_margin_start(6)
@@ -86,8 +121,8 @@ class WallpapererWindow(Adw.ApplicationWindow):
 
     def __init__(self, app):
         super().__init__(application=app, title=APP_NAME)
-        self.set_default_size(600, 850)
-        self.set_size_request(500, 650)  # Minimum size
+        self.set_default_size(600, 950)
+        self.set_size_request(600, 200)  # Minimum size
 
         self.image_rows: list[ImageRow] = []
 
@@ -99,13 +134,18 @@ class WallpapererWindow(Adw.ApplicationWindow):
         header = Adw.HeaderBar()
         main_box.append(header)
 
+        # Scrolled window for all content
+        main_scrolled = Gtk.ScrolledWindow()
+        main_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        main_box.append(main_scrolled)
+
         # Content box with margins
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         content.set_margin_start(18)
         content.set_margin_end(18)
         content.set_margin_top(18)
         content.set_margin_bottom(18)
-        main_box.append(content)
+        main_scrolled.set_child(content)
 
         # Add images button
         add_btn = Gtk.Button(label="Add Images")
@@ -118,10 +158,7 @@ class WallpapererWindow(Adw.ApplicationWindow):
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_vexpand(True)
         scrolled.set_min_content_height(100)
-
-        frame = Gtk.Frame()
-        frame.set_child(scrolled)
-        content.append(frame)
+        content.append(scrolled)
 
         self.images_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         scrolled.set_child(self.images_box)
@@ -138,7 +175,9 @@ class WallpapererWindow(Adw.ApplicationWindow):
         content.append(settings_group)
 
         # Duration per image
-        duration_row = Adw.ActionRow(title="Duration per image", subtitle="How long each image is displayed")
+        duration_row = Adw.ActionRow(
+            title="Duration per image", subtitle="How long each image is displayed"
+        )
         self.duration_spin = Gtk.SpinButton.new_with_range(1, 999, 1)
         self.duration_spin.set_value(5)
         self.duration_spin.set_digits(0)
@@ -151,6 +190,20 @@ class WallpapererWindow(Adw.ApplicationWindow):
         self.duration_unit.set_valign(Gtk.Align.CENTER)
         duration_row.add_suffix(self.duration_unit)
         settings_group.add(duration_row)
+
+        # Scaling mode dropdown
+        scaling_row = Adw.ComboRow(
+            title="Scaling mode", subtitle="How images are fit to the screen"
+        )
+        scaling_model = Gio.ListStore.new(ScalingOption)
+        for value, name, desc in SCALING_OPTIONS:
+            scaling_model.append(ScalingOption(value, name, desc))
+        scaling_row.set_model(scaling_model)
+        scaling_row.set_expression(
+            Gtk.PropertyExpression.new(ScalingOption, None, "display-text")
+        )
+        self.scaling_row = scaling_row
+        settings_group.add(scaling_row)
 
         # Apply button
         self.apply_btn = Gtk.Button(label="Apply Wallpaper")
@@ -204,7 +257,9 @@ class WallpapererWindow(Adw.ApplicationWindow):
         if self.placeholder.get_parent():
             self.images_box.remove(self.placeholder)
 
-        row = ImageRow(path, self.remove_image, self.move_image_up, self.move_image_down)
+        row = ImageRow(
+            path, self.remove_image, self.move_image_up, self.move_image_down
+        )
         self.image_rows.append(row)
         self.images_box.append(row)
         self.update_apply_button()
@@ -260,7 +315,9 @@ class WallpapererWindow(Adw.ApplicationWindow):
             )
             dialog.add_response("cancel", "Cancel")
             dialog.add_response("overwrite", "Overwrite")
-            dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
+            dialog.set_response_appearance(
+                "overwrite", Adw.ResponseAppearance.DESTRUCTIVE
+            )
             dialog.set_default_response("cancel")
             dialog.connect("response", self.on_overwrite_response)
             dialog.present()
@@ -318,7 +375,6 @@ class WallpapererWindow(Adw.ApplicationWindow):
             ET.SubElement(static, "duration").text = f"{duration_seconds:.1f}"
             ET.SubElement(static, "file").text = path
 
-
         # Write formatted XML
         xml_str = ET.tostring(root, encoding="unicode")
         pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
@@ -328,6 +384,11 @@ class WallpapererWindow(Adw.ApplicationWindow):
 
         SLIDESHOW_XML.write_text(pretty_xml)
 
+    def get_selected_scaling(self) -> str:
+        """Get the selected scaling option value."""
+        selected = self.scaling_row.get_selected_item()
+        return selected.value if selected else "zoom"
+
     def generate_properties_xml(self):
         """Generate the background properties XML to register with GNOME."""
         PROPERTIES_DIR.mkdir(parents=True, exist_ok=True)
@@ -336,7 +397,7 @@ class WallpapererWindow(Adw.ApplicationWindow):
         wallpaper = ET.SubElement(root, "wallpaper", deleted="false")
         ET.SubElement(wallpaper, "name").text = "SimpleSlideshow"
         ET.SubElement(wallpaper, "filename").text = str(SLIDESHOW_XML)
-        ET.SubElement(wallpaper, "options").text = "zoom"
+        ET.SubElement(wallpaper, "options").text = self.get_selected_scaling()
 
         # Write formatted XML
         xml_str = ET.tostring(root, encoding="unicode")
@@ -348,14 +409,37 @@ class WallpapererWindow(Adw.ApplicationWindow):
 
     def apply_wallpaper(self):
         """Apply the wallpaper using gsettings."""
-        subprocess.run([
-            "gsettings", "set", "org.gnome.desktop.background",
-            "picture-uri", f"file://{SLIDESHOW_XML}"
-        ], check=True)
-        subprocess.run([
-            "gsettings", "set", "org.gnome.desktop.background",
-            "picture-uri-dark", f"file://{SLIDESHOW_XML}"
-        ], check=True)
+        scaling = self.get_selected_scaling()
+        subprocess.run(
+            [
+                "gsettings",
+                "set",
+                "org.gnome.desktop.background",
+                "picture-uri",
+                f"file://{SLIDESHOW_XML}",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "gsettings",
+                "set",
+                "org.gnome.desktop.background",
+                "picture-uri-dark",
+                f"file://{SLIDESHOW_XML}",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "gsettings",
+                "set",
+                "org.gnome.desktop.background",
+                "picture-options",
+                scaling,
+            ],
+            check=True,
+        )
 
 
 class WallpapererApp(Adw.Application):
