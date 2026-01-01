@@ -1,8 +1,8 @@
 # SimpleSlideshow
 
-A simple application to create and configure desktop wallpaper slideshowson Ubuntu/GNOME. Select images, set duration and timing, and apply.
+An app to create and configure desktop wallpaper slideshows on Ubuntu/GNOME. Select images then set the duration, timing and image scaling.
 
-I created this because I couldn't find an easy way to set up a wallpaperslideshow. It's mostly written with Claude.
+I created this because I couldn't find an easy way to set up a wallpaper slideshow. It's mostly written with Claude.
 
 It has been tested on Ubuntu 24.04.
 
@@ -29,8 +29,3 @@ It generates GNOME-compatible XML configuration files:
 
 See the details of these files at:
 https://help.ubuntu.com/community/SlideshowWallpapers
-
-## TODOs
-
-- not showing image thumbnails in picker
-- warnings in logs

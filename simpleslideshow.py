@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-SimpleSlideshow - A simple GNOME wallpaper slideshow configurator.
-
-Dependencies (Ubuntu/Debian):
-    sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
-"""
 
 import subprocess
 import xml.etree.ElementTree as ET
@@ -23,14 +17,14 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk
 APP_ID = "com.github.simpleslideshow"
 APP_NAME = "SimpleSlideshow"
 
-# Wallpaper scaling options: (gsettings_value, display_name, description)
+# Wallpaper scaling options: (gsettings_value, display_name)
 SCALING_OPTIONS = [
-    ("zoom", "Zoom", "Fill screen, may crop edges"),
-    ("scaled", "Scaled", "Fit to screen, may show borders"),
-    ("stretched", "Stretched", "Stretch to fill, may distort"),
-    ("centered", "Centered", "Center at original size, no scaling"),
-    ("wallpaper", "Tiled", "Tile the image repeatedly"),
-    ("spanned", "Spanned", "Span across multiple monitors"),
+    ("zoom", "Zoom"),
+    ("scaled", "Scaled"),
+    ("stretched", "Stretched"),
+    ("centered", "Centered"),
+    ("wallpaper", "Tiled"),
+    ("spanned", "Span Monitors"),
 ]
 
 # Directories for GNOME wallpaper configuration
@@ -55,7 +49,7 @@ class ScalingOption(GObject.Object):
 
     @GObject.Property(type=str, nick="display-text")
     def display_text(self) -> str:
-        return f"{self._name} - {self._description}"
+        return self._name
 
 
 class ImageRow(Gtk.Box):
@@ -195,13 +189,10 @@ class WallpapererWindow(Adw.ApplicationWindow):
         scaling_row = Adw.ComboRow(
             title="Scaling mode", subtitle="How images are fit to the screen"
         )
-        scaling_model = Gio.ListStore.new(ScalingOption)
-        for value, name, desc in SCALING_OPTIONS:
-            scaling_model.append(ScalingOption(value, name, desc))
+        scaling_names = [name for _, name in SCALING_OPTIONS]
+        scaling_model = Gtk.StringList.new(scaling_names)
         scaling_row.set_model(scaling_model)
-        scaling_row.set_expression(
-            Gtk.PropertyExpression.new(ScalingOption, None, "display-text")
-        )
+        scaling_row.set_selected(0)  # Default to first option (Zoom)
         self.scaling_row = scaling_row
         settings_group.add(scaling_row)
 
@@ -386,8 +377,10 @@ class WallpapererWindow(Adw.ApplicationWindow):
 
     def get_selected_scaling(self) -> str:
         """Get the selected scaling option value."""
-        selected = self.scaling_row.get_selected_item()
-        return selected.value if selected else "zoom"
+        selected_index = self.scaling_row.get_selected()
+        if selected_index < len(SCALING_OPTIONS):
+            return SCALING_OPTIONS[selected_index][0]  # Return the gsettings_value
+        return "zoom"  # Default fallback
 
     def generate_properties_xml(self):
         """Generate the background properties XML to register with GNOME."""
